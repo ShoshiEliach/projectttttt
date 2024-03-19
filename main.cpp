@@ -63,19 +63,7 @@ extern "C"{
 std::list<Waiter>* findListById(const char* id) {
     std::string id_str(id);
 
- //mtx_treadmill.lock();
-
-  /*for (int i = 0; i < ids.size(); i++) {
-  std::string id = ids[i]; 
-
-  // בדיקה אופציונלית: ודא שהמפתח (id) אינו קיים לפני הכנסת רשימה חדשה.
-/*if (waiterListMap.find(id) == waiterListMap.end()) {
-    waiterListMap[id] = list;
-   }*/
-
- //mtx_treadmill.unlock();
-
-  // איתור הרשימה במילון
+ 
   auto it = waiterListMap.find(id_str);
 
   // החזרת מצביע לרשימה אם נמצאה
@@ -100,7 +88,20 @@ int waiters(std::list<Waiter> l)
 return l.size();
 }
 
+int updatePriority(std::list<Waiter> l)
+{
+ if (l.empty()||l.front().timeValue <= 0) 
+ {
+  return 0;
+ }
+    
+std::time_t currentTime = std::time(nullptr);
+  std::time_t timeValueFirst = l.front().timeValue;
+  std::time_t timeWaiting = currentTime - timeValueFirst;
+  int timeWaitingSeconds = static_cast<int>(difftime(currentTime, timeValueFirst));
+  return timeWaitingSeconds*5;
 
+  
 
 
 }
@@ -121,7 +122,7 @@ extern "C"{void countWaiters(std::list<Waiter> l)
                 std::time_t timeValueFirst = l.front().timeValue;
                 //waiterListMutex.unlock();
                 double timeDifference = std::difftime(current_time, timeValueFirst);
-                if(timeDifference>=0.4)
+                if(timeDifference>=4)
                 {
                     //waiterListMutex.lock();
                     l.pop_front();
@@ -202,7 +203,7 @@ listD2.join();
 
     return 0;
 }
-
+}
 }
 
 // extern "C" {
