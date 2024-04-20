@@ -1,9 +1,13 @@
+<<<<<<< HEAD
 import heapq
+=======
+>>>>>>> 14ce2f7f1e0b518eb5bd25c8c2ba0de0ea596dcb
 from sys import exit
 import car
 import pygame
 import random
 import lidar
+<<<<<<< HEAD
 import notIf
 import points
 import math
@@ -11,14 +15,26 @@ import networkx as nx
 import trraficLight
 import visualPoints
 import datetime
+=======
+import points
+import math
+
+import trraficLight
+import visualPoints
+from datetime import datetime, timedelta
+>>>>>>> 14ce2f7f1e0b518eb5bd25c8c2ba0de0ea596dcb
 import threading
 import time
 import ctypes
 import multiprocessing
 import heapQ
+<<<<<<< HEAD
 from heapQ import lock
 from multiprocessing import Process
 import MacroGraph
+=======
+from multiprocessing import Process
+>>>>>>> 14ce2f7f1e0b518eb5bd25c8c2ba0de0ea596dcb
 #יבוא קובץ בC++ והגדרת הפונקציות
 lib = ctypes.CDLL("C:\\Users\\User\\Documents\\projecttt\\Threads\\main.so")
 newValue=lib.addValueToList
@@ -31,6 +47,7 @@ waiters_now=lib.waiters
 waiters_now.restype = ctypes.c_int
 waiters_now.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
 
+<<<<<<< HEAD
 addTimeToPriority=lib.updatePriority
 addTimeToPriority.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
 addTimeToPriority.restype = ctypes.c_int
@@ -42,6 +59,8 @@ initializeList=lib.initializeList
 initializeList.argtypes = [ctypes.c_char_p]
 
 #הגדרת תור העדיפויות של הנתיבים
+=======
+>>>>>>> 14ce2f7f1e0b518eb5bd25c8c2ba0de0ea596dcb
 pqRoads = heapQ.PriorityQueue()
 memberA1C1=heapQ.Member("A1C1",0,0,0,True)
 memberA1A2=heapQ.Member("A1A2",0,0,0,True)
@@ -55,6 +74,7 @@ pqRoads.push(memberB1B2)
 pqRoads.push(memberB1D1)
 pqRoads.push(memberC1C2)
 pqRoads.push(memberD1D2)
+<<<<<<< HEAD
 
 trrafics=[]
 roadsGraph=MacroGraph.macroGraph
@@ -75,11 +95,32 @@ def identificationLidar(id,this_cars,lidar,all_points,isRed):
 
     this_points = []#ההתנגשויות הנוכחיות
     if any(this_cars):#אם יש מכוניות בכלל
+=======
+trrafics=[]
+
+
+
+
+
+#פונקציה הבודקת על נתיב האם קרן הלידאר מתנגשת במכוניות שנמצאות בו אם כן מוסיפה את נקודת ההתנגשות לענן הנקודות
+def identificationLidar(id,this_cars,lidar,all_points,isRed):
+    this_points = []#ההתנגשויות הנוכחיות
+    if any(this_cars):#אם יש מכוניות בכלל
+        #print(this_cars)
+>>>>>>> 14ce2f7f1e0b518eb5bd25c8c2ba0de0ea596dcb
         cloud_points = []
         id_c_char_p = ctypes.c_char_p(id.encode())
         waiterList = findListById(id_c_char_p)
 
+<<<<<<< HEAD
         # עובר על כל קרן ומחשב את נקודת הסיום שלה ומצייר אותה
+=======
+
+            #c_id = ctypes.c_void_p(waiterList)
+            #print('c_id')
+        # עובר על כל קרן ומחשב את נקודת הסיום שלה ומצייר אותה
+
+>>>>>>> 14ce2f7f1e0b518eb5bd25c8c2ba0de0ea596dcb
         for angle in range(lidar.start_angle, lidar.end_angle + 1):
             intersect_x, intersect_y = lidar.calculate_intersection_point(angle)
             this_points.append(((intersect_x, intersect_y), lidar.position))
@@ -88,6 +129,7 @@ def identificationLidar(id,this_cars,lidar,all_points,isRed):
         # בודק על כל רכב בנתיב האם הוא נפגש בקרן
         for i in this_points:
             x, y = i[0]
+<<<<<<< HEAD
             for c in this_cars:
                   if c.collided(x, y):
                     cloud_points.append((x, y))
@@ -121,6 +163,35 @@ def identificationLidar(id,this_cars,lidar,all_points,isRed):
 
                 result = [id, mone]
                 return result
+=======
+            #print(x, y)
+
+            for c in this_cars:
+                # try:
+                #     print(c.vel)
+                # except AttributeError:
+                #     print("אובייקט זה אינו מכיל את התכונה 'vel'")
+                if c.collided(x, y):
+                    cloud_points.append((x, y))
+                # עיבוד ענן הנקודות למספר הרכבים הממתינים
+                if (cloud_points):
+                    detection = points.carDetection(cloud_points, 4, 2)
+
+                    detection.detect_objects()
+                    if not isRed:
+                        lib.countWaiters(waiterList)
+                    num = detection.get_detected_objects()
+                    #num = num // 2
+                    #print(num)
+                    newValue(num, waiterList)
+                    mone = waiters_now(waiterList)
+                    pqRoads.replace(id,mone)
+
+                    print(id, mone)
+                    result = [id, mone]
+                    # print('result')
+                    return result
+>>>>>>> 14ce2f7f1e0b518eb5bd25c8c2ba0de0ea596dcb
 
 
 #פונקציה המזמנת את זיהוי הרכבים בשביל כל רשימת הנתיבים
@@ -128,11 +199,18 @@ def process_list(data):
 
     list_item,all_points = data
     id,list_data,lidar,isRed = list_item
+<<<<<<< HEAD
+=======
+    #for l in list_data:
+        #print( l.vel)
+
+>>>>>>> 14ce2f7f1e0b518eb5bd25c8c2ba0de0ea596dcb
     identificationLidar(id,list_data,lidar,all_points,isRed)
 
 
 
 
+<<<<<<< HEAD
 '''def callback(result):
     if isinstance(result, Exception):
         print(f"Error: {result}")
@@ -223,13 +301,58 @@ def traffic_light_logic():
 
 
 #task_thread = threading.Thread(target=repeated_task)
+=======
+def callback(result):
+    if isinstance(result, Exception):
+        print(f"Error: {result}")
+    else:
+        print(f"Result: {result}")
+stop_thread = threading.Event()
+def check_on_trrafic():
+    first_member = pqRoads.peek()
+    id1 = first_member.id1
+    id2 = first_member.id2
+    first_member.counter = 0
+    first_member.counter1 = 0
+    first_member.counter2 = 0
+
+    print(id1, id2)
+
+    for t in trrafics:
+        if t.id==id1 or t.id==id2:
+            t.color=colors[1]
+            t.fill(t.color)
+            print(t.id)
+            print('change color')
+        else:
+            t.color=colors[0]
+            t.fill(t.color)
+    task_thread.run = lambda: False
+
+
+def repeated_task():
+    stop_thread = False  # Flag to indicate thread termination
+    while not stop_thread:
+        # Call the function to do something
+        check_on_trrafic()
+        # Wait for 20 seconds before the next iteration
+        time.sleep(20)
+
+# Create a thread for the repeated task
+task_thread = threading.Thread(target=repeated_task)
+>>>>>>> 14ce2f7f1e0b518eb5bd25c8c2ba0de0ea596dcb
 
 
 
 lib.main()
+<<<<<<< HEAD
 #task_thread.start()
 traffic_light_thread = threading.Thread(target=traffic_light_logic)
 traffic_light_thread.start()
+=======
+task_thread.start()
+
+>>>>>>> 14ce2f7f1e0b518eb5bd25c8c2ba0de0ea596dcb
 
 if __name__ == '__main__':
     all_points = multiprocessing.Manager().list()
@@ -345,6 +468,10 @@ if __name__ == '__main__':
             c.y -= c.vel
             pygame.draw.rect(screen, (255, 0, 0), (c.x, c.y, c.width, c.height))
         for i in range(len(all_points) - 1):
+<<<<<<< HEAD
+=======
+            #print((points[i], points[i + 1]), (points[i + 2][0], points[i + 2][1]))
+>>>>>>> 14ce2f7f1e0b518eb5bd25c8c2ba0de0ea596dcb
             x1, y1 = all_points[i][0]
 
             # Extract the x and y coordinates for the ending point
@@ -364,7 +491,11 @@ if __name__ == '__main__':
         #pool.map_async(process_list, [(list_item, points) for list_item, points, _ in lists_to_process],
                            #callback=callback, chunksize=2)
 
+<<<<<<< HEAD
         pool.map_async(process_list, [(list_item, all_points) for list_item in lists_to_process],
+=======
+        pool.map_async(process_list, [(list_item, all_points) for list_item in lists_to_process], callback=callback,
+>>>>>>> 14ce2f7f1e0b518eb5bd25c8c2ba0de0ea596dcb
                        chunksize=2)
 
         pygame.display.update()
