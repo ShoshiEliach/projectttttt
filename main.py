@@ -1,20 +1,24 @@
+import heapq
 from sys import exit
 import car
 import pygame
 import random
 import lidar
+import notIf
 import points
 import math
-
+import networkx as nx
 import trraficLight
 import visualPoints
-from datetime import datetime, timedelta
+import datetime
 import threading
 import time
 import ctypes
 import multiprocessing
 import heapQ
+from heapQ import lock
 from multiprocessing import Process
+import MacroGraph
 #יבוא קובץ בC++ והגדרת הפונקציות
 lib = ctypes.CDLL("C:\\Users\\User\\Documents\\projecttt\\Threads\\main.so")
 newValue=lib.addValueToList
@@ -27,6 +31,17 @@ waiters_now=lib.waiters
 waiters_now.restype = ctypes.c_int
 waiters_now.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
 
+addTimeToPriority=lib.updatePriority
+addTimeToPriority.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
+addTimeToPriority.restype = ctypes.c_int
+
+WaitingLongTime=lib.WaitingLongTime
+WaitingLongTime.restype = ctypes.c_char_p
+
+initializeList=lib.initializeList
+initializeList.argtypes = [ctypes.c_char_p]
+
+#הגדרת תור העדיפויות של הנתיבים
 pqRoads = heapQ.PriorityQueue()
 memberA1C1=heapQ.Member("A1C1",0,0,0,True)
 memberA1A2=heapQ.Member("A1A2",0,0,0,True)
@@ -40,26 +55,31 @@ pqRoads.push(memberB1B2)
 pqRoads.push(memberB1D1)
 pqRoads.push(memberC1C2)
 pqRoads.push(memberD1D2)
+
 trrafics=[]
+roadsGraph=MacroGraph.macroGraph
+nodes_priority_queues=MacroGraph.node_priority_queues
+def updateGraphFromHeapQMicro():
+    temp_heap=pqRoads
+    priority_queueB2=[]
+    while temp_heap:
+        temp_member=temp_heap.pop()
+        heapq.heappush(priority_queueB2, (temp_member[1], temp_member[0]))
 
-
-
-
+    heapq.heapify(priority_queueB2)
+    nodes_priority_queues['nodeB2']=priority_queueB2
 
 #פונקציה הבודקת על נתיב האם קרן הלידאר מתנגשת במכוניות שנמצאות בו אם כן מוסיפה את נקודת ההתנגשות לענן הנקודות
 def identificationLidar(id,this_cars,lidar,all_points,isRed):
+    timeWait = 0
+
     this_points = []#ההתנגשויות הנוכחיות
     if any(this_cars):#אם יש מכוניות בכלל
-        #print(this_cars)
         cloud_points = []
         id_c_char_p = ctypes.c_char_p(id.encode())
         waiterList = findListById(id_c_char_p)
 
-
-            #c_id = ctypes.c_void_p(waiterList)
-            #print('c_id')
         # עובר על כל קרן ומחשב את נקודת הסיום שלה ומצייר אותה
-
         for angle in range(lidar.start_angle, lidar.end_angle + 1):
             intersect_x, intersect_y = lidar.calculate_intersection_point(angle)
             this_points.append(((intersect_x, intersect_y), lidar.position))
@@ -68,33 +88,39 @@ def identificationLidar(id,this_cars,lidar,all_points,isRed):
         # בודק על כל רכב בנתיב האם הוא נפגש בקרן
         for i in this_points:
             x, y = i[0]
-            #print(x, y)
-
             for c in this_cars:
-                # try:
-                #     print(c.vel)
-                # except AttributeError:
-                #     print("אובייקט זה אינו מכיל את התכונה 'vel'")
-                if c.collided(x, y):
+                  if c.collided(x, y):
                     cloud_points.append((x, y))
-                # עיבוד ענן הנקודות למספר הרכבים הממתינים
-                if (cloud_points):
-                    detection = points.carDetection(cloud_points, 4, 2)
+            if (cloud_points):
+                detection = points.carDetection(cloud_points, 4, 2)
+                detection.detect_objects()
+                # אם הרמזור ירוק צריך להסיר את המכוניות לאחר 4 שניות
+                if not isRed:
+                    lib.countWaiters(waiterList)
+                else:
+                    #מוסיף
+                    timeWait=addTimeToPriority(waiterList)
+                    '''print('timeWait')
+                    print(timeWait)'''
 
-                    detection.detect_objects()
-                    if not isRed:
-                        lib.countWaiters(waiterList)
-                    num = detection.get_detected_objects()
-                    #num = num // 2
-                    #print(num)
-                    newValue(num, waiterList)
-                    mone = waiters_now(waiterList)
-                    pqRoads.replace(id,mone)
+                num = detection.get_detected_objects()
+                '''print("num:")
+                print(num)'''
+                newValue(num, waiterList)
+                mone = waiters_now(waiterList)
+                ''''print("mone")
+                print(mone)'''
 
-                    print(id, mone)
-                    result = [id, mone]
-                    # print('result')
-                    return result
+                mone=mone+timeWait
+                #print(id,mone)
+                pqRoads.replace(id, mone)
+
+                #כאן מעדכנים את הגרף מאקרו בערכי הצומת מיקרו
+                updateGraphFromHeapQMicro()
+                checkA1Orc1(id,mone)
+
+                result = [id, mone]
+                return result
 
 
 #פונקציה המזמנת את זיהוי הרכבים בשביל כל רשימת הנתיבים
@@ -102,58 +128,108 @@ def process_list(data):
 
     list_item,all_points = data
     id,list_data,lidar,isRed = list_item
-    #for l in list_data:
-        #print( l.vel)
-
     identificationLidar(id,list_data,lidar,all_points,isRed)
 
 
 
 
-def callback(result):
+'''def callback(result):
     if isinstance(result, Exception):
         print(f"Error: {result}")
     else:
-        print(f"Result: {result}")
-stop_thread = threading.Event()
-def check_on_trrafic():
-    first_member = pqRoads.peek()
-    id1 = first_member.id1
-    id2 = first_member.id2
-    first_member.counter = 0
-    first_member.counter1 = 0
-    first_member.counter2 = 0
+        print(f"Result: {result}")'''
 
-    print(id1, id2)
+#stop_thread = threading.Event()
+def checkA1Orc1(id,mone):
+  notIf.A1OrC1(id) and MacroGraph.add_cars_to_graph_Road(id,mone)
 
+
+
+def on_specific_trrafic(id):
+    #time.sleep(3)
     for t in trrafics:
-        if t.id==id1 or t.id==id2:
-            t.color=colors[1]
-            t.fill(t.color)
-            print(t.id)
-            print('change color')
+        if t.id == id:
+            t.on_trrafic()
+            print('2')
+            initializeList(id)
+            green_wave(id)
         else:
-            t.color=colors[0]
-            t.fill(t.color)
-    task_thread.run = lambda: False
+            t.off_trrafic()
+def on_trrafic_head_heapQ():
+    if pqRoads.first_member:
+        first_member = pqRoads.first_member
+        #print("first_member")
+        #print(first_member)
+
+        id1 = first_member.id1
+        id2 = first_member.id2
+        print(id1,id2)
+        on_specific_trrafic(id1)
+        print('1')
+        on_specific_trrafic(id2)
 
 
-def repeated_task():
-    stop_thread = False  # Flag to indicate thread termination
+
+        first_member.counter = 0
+        first_member.counter1 = 0
+        first_member.counter2 = 0
+        #task_thread.run = lambda: False
+def diffrence_time(last,now,num_seconds):
+    time_difference = last - now
+    if time_difference.total_seconds() >= num_seconds:
+        on_specific_trrafic(id)
+        return True
+    return False
+
+def is_case_y():
+    id=WaitingLongTime()
+    if id !="not":
+        return True,on_specific_trrafic,id
+    else:
+        return False,None,0
+
+
+
+
+
+def traffic_light_logic():
+
+    global is_green, elapsed_time
+    elapsed_time=0
+    is_green=False
+
+    while True:
+        if elapsed_time % 20 == 0:
+            power_now = datetime.datetime.now()
+            is_green = not is_green
+            on_trrafic_head_heapQ()
+        #פה צריך לבדוק את הזמן שרמזור דולק
+        status, on_specific_trrafic, id = is_case_y()
+        #print(status,is_green)
+
+        if status and is_green and diffrence_time(power_now, (datetime.datetime.now()), 10):
+            print('1.2')
+            is_green = False
+            print('1.5')
+            on_specific_trrafic(id)
+
+        time.sleep(1)
+        elapsed_time += 1
+'''def repeated_task():
+    stop_thread = False
     while not stop_thread:
-        # Call the function to do something
-        check_on_trrafic()
-        # Wait for 20 seconds before the next iteration
         time.sleep(20)
+        check_on_trrafic()'''
 
-# Create a thread for the repeated task
-task_thread = threading.Thread(target=repeated_task)
+
+#task_thread = threading.Thread(target=repeated_task)
 
 
 
 lib.main()
-task_thread.start()
-
+#task_thread.start()
+traffic_light_thread = threading.Thread(target=traffic_light_logic)
+traffic_light_thread.start()
 
 if __name__ == '__main__':
     all_points = multiprocessing.Manager().list()
@@ -269,7 +345,6 @@ if __name__ == '__main__':
             c.y -= c.vel
             pygame.draw.rect(screen, (255, 0, 0), (c.x, c.y, c.width, c.height))
         for i in range(len(all_points) - 1):
-            #print((points[i], points[i + 1]), (points[i + 2][0], points[i + 2][1]))
             x1, y1 = all_points[i][0]
 
             # Extract the x and y coordinates for the ending point
@@ -289,7 +364,7 @@ if __name__ == '__main__':
         #pool.map_async(process_list, [(list_item, points) for list_item, points, _ in lists_to_process],
                            #callback=callback, chunksize=2)
 
-        pool.map_async(process_list, [(list_item, all_points) for list_item in lists_to_process], callback=callback,
+        pool.map_async(process_list, [(list_item, all_points) for list_item in lists_to_process],
                        chunksize=2)
 
         pygame.display.update()
